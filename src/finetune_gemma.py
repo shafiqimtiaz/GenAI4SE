@@ -21,8 +21,8 @@ def compute_meteor_score(label, generated_txt):
 
 def prompt_template(record, split, incl_ocomment, incl_inst):
     INST = "Below is an instruction that describes a task. Write a response that "\
-            "appropriately completes the request.\n\nGo through the code changes from old "\
-            "code to new code and generate an updated code summary."\
+            "appropriately completes the request.\n\nGo through the old javadoc comment "\
+            "and new code and generate an updated javadoc comment for the new code."\
 
     if incl_ocomment:
         USER_TEMPLATE = '''<start_of_turn>user\nOld Comment:\n{}\nNew Code:\n{}\n<end_of_turn>\n'''.\
