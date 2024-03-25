@@ -1,10 +1,12 @@
+import json
 import os
-import re
 import sys
 
 import fire
+import numpy as np
 import torch
 from datasets import load_dataset
+from nltk.translate.meteor_score import single_meteor_score
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from tqdm import tqdm
 from transformers import (AutoModelForCausalLM, AutoTokenizer,
@@ -14,16 +16,19 @@ from trl import SFTTrainer
 
 MODEL_ID = "google/gemma-7b-it"
 
-def prompt_template(record, split, with_ocomment, with_inst):
+def compute_meteor_score(label, generated_txt):
+    return single_meteor_score(reference=generated_txt, hypothesis=label)
+
+def prompt_template(record, split, incl_ocomment, incl_inst):
     INST = "Below is an instruction that describes a task. Write a response that "\
             "appropriately completes the request.\n\nGo through the code changes from old "\
             "code to new code and generate an updated code summary."\
 
-    if with_ocomment:
+    if incl_ocomment:
         USER_TEMPLATE = '''<start_of_turn>user\nOld Comment:\n{}\nNew Code:\n{}\n<end_of_turn>\n'''.\
                         format(record["src_javadoc"], record["dst_method"])
 
-    elif with_ocomment and with_inst:
+    elif incl_ocomment and incl_inst:
         USER_TEMPLATE = '''<start_of_turn>user\n{}\n\nOld Comment:\n{}\nNew Code:\n{}\n<end_of_turn>\n'''.\
                         format(INST, record["src_javadoc"], record["dst_method"])
 
@@ -42,7 +47,7 @@ def prompt_template(record, split, with_ocomment, with_inst):
     return prompt_template
 
 
-def training(train_ds, valid_ds):
+def training(train_ds, valid_ds, max_epochs, batch_size):
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ID,
                                               device_map="auto",
@@ -101,9 +106,9 @@ def training(train_ds, valid_ds):
     training_args = TrainingArguments(
         output_dir="./gemma-7b-it-ft",
         learning_rate=2e-4,
-        per_device_train_batch_size=4,
-        per_device_eval_batch_size=4,
-        max_steps=1,
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        num_train_epochs=max_epochs,
         logging_strategy="epoch",
         evaluation_strategy="epoch",
         save_strategy="epoch",
@@ -130,6 +135,9 @@ def training(train_ds, valid_ds):
 
 
 def inference(test_ds, tokenizer, model, max_new_tokens):
+    generated_comment = {}
+    score = []
+
     generation_config = GenerationConfig(
         temperature=0.1,
         do_sample=True
@@ -137,7 +145,6 @@ def inference(test_ds, tokenizer, model, max_new_tokens):
 
     model.to("cuda:0")
     model.eval()
-    generated_comment = []
     for record in tqdm(test_ds):
         encoding = tokenizer(record["prompt"],
                             return_tensors="pt",
@@ -149,19 +156,26 @@ def inference(test_ds, tokenizer, model, max_new_tokens):
                                         do_sample=True,
                                         pad_token_id=tokenizer.eos_token_id)
         generated_ids = generated_ids[:, encoding.input_ids.shape[1]:]
-        generated_text = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+        generated_text = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-        generated_comment.append(generated_text)
+        score.append(compute_meteor_score(record["dst_javadoc"].split(" "), generated_text.split(" ")))
+
+        generated_comment[record["sample_id"]] = {
+            "original": record["dst_javadoc"],
+            "generated": generated_text
+        }
+
+    print(f"Average Meteor Score: {np.mean(score)}")
 
     return generated_comment
 
-def run(data_dir: str, with_ocomment: bool = False, with_inst: bool = False,
-        max_new_tokens: int = 128):
+def run(data_dir: str, max_epochs: int, incl_ocomment: bool = False, incl_inst: bool = False,
+        batch_size: int = 8, max_new_tokens: int = 128):
 
     data_files = {
-        "train": "dummy_train.csv",
-        "valid": "dummy_train.csv",
-        "test": "dummy_train.csv"
+        "train": "dummy_train.csv", #"train_preprocessed.csv",
+        "valid": "dummy_train.csv", #"eval_preprocessed.csv",
+        "test": "dummy_train.csv" #"test_preprocessed.csv"
     }
 
     dataset = load_dataset("csv", data_dir=data_dir, data_files=data_files)
@@ -169,14 +183,15 @@ def run(data_dir: str, with_ocomment: bool = False, with_inst: bool = False,
     for split in ["train", "valid", "test"]:
         prompt_col = []
         for record in tqdm(dataset[split]):
-                prompt_col.append(prompt_template(record, split, with_ocomment, with_inst))
+                prompt_col.append(prompt_template(record, split, incl_ocomment, incl_inst))
 
         dataset[split] = dataset[split].add_column("prompt", prompt_col)
 
-    model, tokenizer = training(dataset["train"], dataset["valid"])
-    output_comments = inference(dataset["test"], tokenizer, model, max_new_tokens)
+    model, tokenizer = training(dataset["train"], dataset["valid"], max_epochs, batch_size)
+    generated_comments = inference(dataset["test"], tokenizer, model, max_new_tokens)
 
-    print(output_comments)
+    with open("./output.json", 'w') as f:
+        json.dump(generated_comments, f)
 
 if __name__ == "__main__":
     fire.Fire(run)
