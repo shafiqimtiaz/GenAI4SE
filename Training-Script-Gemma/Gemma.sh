@@ -8,4 +8,4 @@
 source /home/t_ereira/myenvs/bin/activate
 conda activate /home/t_ereira/myenvs/envs/cerberus
 
-python "/home/t_ereira/GenAI/TrainingScriptExp1.py" "/home/t_ereira/GenAI/train_preprocessed.csv" "/home/t_ereira/GenAI/test_preprocessed.csv" "/home/t_ereira/GenAI/Results/"
+python "/home/rraj/GenAI/TrainingScriptExp1.py" "/home/rraj/GenAI/train_preprocessed.csv" "/home/rraj/GenAI/test_preprocessed.csv" "/home/rraj/GenAI/Results/"
