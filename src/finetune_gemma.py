@@ -126,7 +126,7 @@ def training(train_ds, valid_ds, max_epochs, batch_size):
     trainer = SFTTrainer(
         model=model,
         train_dataset=train_tokenized_inputs,
-        eval_dataset=train_tokenized_inputs, # replace this with valid_tokenized_input
+        eval_dataset=valid_tokenized_inputs, # replace this with valid_tokenized_inputs
         args=training_args,
         peft_config=peft_config,
         dataset_text_field="prompt",
@@ -174,13 +174,13 @@ def inference(test_ds, tokenizer, model, max_new_tokens):
 
     return generated_comment
 
-def run(data_dir: str, experiment: int, max_epochs: int,
+def run(data_dir: str, experiment: int, max_epochs: int=10,
         batch_size: int = 8, max_new_tokens: int = 128):
 
     data_files = {
-        "train": "dummy_train.csv", #"train_preprocessed.csv",
-        "valid": "dummy_train.csv", #"eval_preprocessed.csv",
-        "test": "dummy_train.csv" #"test_preprocessed.csv"
+        "train": "train_preprocessed.csv",
+        "valid": "eval_preprocessed.csv",
+        "test":"test_preprocessed.csv"
     }
 
     dataset = load_dataset("csv", data_dir=data_dir, data_files=data_files)
