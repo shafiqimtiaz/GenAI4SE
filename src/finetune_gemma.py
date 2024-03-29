@@ -14,27 +14,32 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer,
                           GenerationConfig, TrainingArguments)
 from trl import SFTTrainer
 
-MODEL_ID = "google/gemma-7b-it"
+MODEL_ID = "google/gemma-2b-it"
 
 def compute_meteor_score(label, generated_txt):
     return single_meteor_score(reference=generated_txt, hypothesis=label)
 
-def prompt_template(record, split, incl_ocomment, incl_inst):
+def prompt_template(record, split, experiment):
     INST = "Below is an instruction that describes a task. Write a response that "\
             "appropriately completes the request.\n\nGo through the old javadoc comment "\
             "and new code and generate an updated javadoc comment for the new code."\
 
-    if incl_ocomment:
+    if experiment == 1:
+        USER_TEMPLATE = '''<start_of_turn>user\nCode:\n{}\n<end_of_turn>\n'''.\
+                        format(record["dst_method"])
+
+    if experiment == 2:
         USER_TEMPLATE = '''<start_of_turn>user\nOld Comment:\n{}\nNew Code:\n{}\n<end_of_turn>\n'''.\
                         format(record["src_javadoc"], record["dst_method"])
 
-    elif incl_ocomment and incl_inst:
-        USER_TEMPLATE = '''<start_of_turn>user\n{}\n\nOld Comment:\n{}\nNew Code:\n{}\n<end_of_turn>\n'''.\
-                        format(INST, record["src_javadoc"], record["dst_method"])
+    if experiment == 3:
+        USER_TEMPLATE = '''<start_of_turn>user\nOld Code:\n{}\nNew Code:\n{}\n<end_of_turn>\n'''.\
+                        format(record["src_method"], record["dst_method"])
 
-    else:
-        USER_TEMPLATE = '''<start_of_turn>user\nCode:\n{}\n<end_of_turn>\n'''.\
-                        format(record["dst_method"])
+    if experiment == 4:
+        USER_TEMPLATE = '''<start_of_turn>user\nOld Comment:\n{}\nOld Code:\n{}\nGit Diff:\n{}\n<end_of_turn>\n'''.\
+                        format(record["src_javadoc"], record["src_method"], record["diff"])
+
 
     MODEL_TEMPLATE = '''<start_of_turn>model\nTarget Comment:\n{}<end_of_turn>'''.\
                      format(record["dst_javadoc"])
@@ -169,7 +174,7 @@ def inference(test_ds, tokenizer, model, max_new_tokens):
 
     return generated_comment
 
-def run(data_dir: str, max_epochs: int, incl_ocomment: bool = False, incl_inst: bool = False,
+def run(data_dir: str, experiment: int, max_epochs: int,
         batch_size: int = 8, max_new_tokens: int = 128):
 
     data_files = {
@@ -183,7 +188,7 @@ def run(data_dir: str, max_epochs: int, incl_ocomment: bool = False, incl_inst: 
     for split in ["train", "valid", "test"]:
         prompt_col = []
         for record in tqdm(dataset[split]):
-                prompt_col.append(prompt_template(record, split, incl_ocomment, incl_inst))
+                prompt_col.append(prompt_template(record, split, experiment))
 
         dataset[split] = dataset[split].add_column("prompt", prompt_col)
 
