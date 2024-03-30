@@ -120,7 +120,8 @@ def training(train_ds, valid_ds, max_epochs, batch_size):
         load_best_model_at_end=True,
         gradient_accumulation_steps=2,
         fp16=True,
-        optim="paged_adamw_8bit"
+        optim="paged_adamw_8bit",
+        ddp_find_unused_parameters=False
     )
 
     trainer = SFTTrainer(
