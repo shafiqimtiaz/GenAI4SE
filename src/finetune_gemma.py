@@ -90,7 +90,7 @@ def training(train_ds, valid_ds, max_epochs, batch_size):
     model.gradient_checkpointing_enable()
     model = prepare_model_for_kbit_training(model)
 
-    modules = ['q_proj','k_proj','v_proj','o_proj','down_proj', 'up_proj', 'gate_proj']
+    modules = ['q_proj','k_proj','v_proj','o_proj','down_proj','up_proj','gate_proj']
     peft_config = LoraConfig(
         r=8,
         lora_alpha=32,
@@ -109,7 +109,7 @@ def training(train_ds, valid_ds, max_epochs, batch_size):
     torch.cuda.empty_cache()
 
     training_args = TrainingArguments(
-        output_dir="./gemma-7b-it-ft",
+        output_dir="./gemma-2b-it-ft",
         learning_rate=2e-4,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
@@ -174,8 +174,8 @@ def inference(test_ds, tokenizer, model, max_new_tokens):
 
     return generated_comment
 
-def run(data_dir: str, experiment: int, max_epochs: int=10,
-        batch_size: int = 8, max_new_tokens: int = 128):
+def run(data_dir: str, experiment: int = 4, max_epochs: int = 1,
+        batch_size: int = 4, max_new_tokens: int = 128):
 
     data_files = {
         "train": "train_preprocessed.csv",
