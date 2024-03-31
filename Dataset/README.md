@@ -1,3 +1,3 @@
-- To download training set: `!gdown 1jKBaai-osBmCZ2ohDvy0s1MYNbIxkWu4 
-- To download test set: `!gdown 1iMIeM0ryW0SejlD02LFoMLVFGDoESe3q
-- To download eval set: `!gdown 1tp4wfyG_hFluJ63-Szdlt7AB8vxH2l1W
+- To download training set: !gdown 1jKBaai-osBmCZ2ohDvy0s1MYNbIxkWu4
+- To download test set: !gdown 1iMIeM0ryW0SejlD02LFoMLVFGDoESe3q
+- To download eval set: !gdown 1tp4wfyG_hFluJ63-Szdlt7AB8vxH2l1W
