@@ -1,8 +1,9 @@
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 import difflib
+import os
 # Read the JSON file into a DataFrame
-df_train = pd.read_json(r"D:\Me\concordia\Notes\GenerativeAI\Project\Implementation\dataset\dataset\train.jsonl", lines=True)
+df_train = pd.read_json("../train.jsonl", lines=True)
 
 
 # List to store instances to be removed. Not required but kept to evaluate manually..
@@ -21,6 +22,10 @@ df_filtered = df_train.drop(same_comment_instances_to_remove)
 # Tokenize src_javadoc and dst_javadoc for each row
 df_filtered['src_javadoc_tokens'] = df_filtered['src_javadoc'].apply(lambda x: x.split())
 df_filtered['dst_javadoc_tokens'] = df_filtered['dst_javadoc'].apply(lambda x: x.split())
+
+#Reducing the training set size for gemma
+df_filtered['src_javadoc'] = df_filtered['src_javadoc_tokens'].apply(lambda x : len(x) > 7)
+df_filtered['dst_javadoc'] = df_filtered['dst_javadoc_tokens'].apply(lambda x : len(x) > 7)
 
 # Compute min and max token count of src_javadoc and dst_javadoc
 min_src_tokens = df_filtered['src_javadoc_tokens'].apply(len).min()
@@ -51,8 +56,12 @@ def generate_diff(old_code, new_code):
 # Apply the generate_diff function to each pair of 'src_method' and 'dst_method' and store the result in a new column 'diff'
 df_filtered['diff'] = df_filtered.apply(lambda row: generate_diff(row['src_method'], row['dst_method']), axis=1)
 
+directory = "D:/Me/concordia/Notes/GenerativeAI/Project/Implementation/gemma/"
+if not os.path.exists(directory):
+    os.makedirs(directory)
+
 # Storing filtered data to a csv file.
-csv_file_path = r"D:\Me\concordia\Notes\GenerativeAI\Project\Implementation\train_preprocessed.csv"
+csv_file_path = r"D:/Me/concordia/Notes/GenerativeAI/Project/Implementation/gemma/train_preprocessed.csv"
 
 df_filtered.to_csv(csv_file_path, index=False)
 print(df_filtered.columns)
