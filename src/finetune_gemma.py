@@ -15,11 +15,14 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer,
 from trl import SFTTrainer
 
 MODEL_ID = "google/gemma-2b-it"
+USER_TEMPLATE = ''
 
 def compute_meteor_score(label, generated_txt):
     return single_meteor_score(reference=generated_txt, hypothesis=label)
 
 def prompt_template(record, split, experiment):
+    global USER_TEMPLATE
+
     INST = "Below is an instruction that describes a task. Write a response that "\
             "appropriately completes the request.\n\nGo through the old javadoc comment "\
             "and new code and generate an updated javadoc comment for the new code."\
