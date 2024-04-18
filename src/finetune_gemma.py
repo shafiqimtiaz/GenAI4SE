@@ -14,27 +14,35 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer,
                           GenerationConfig, TrainingArguments)
 from trl import SFTTrainer
 
-MODEL_ID = "google/gemma-7b-it"
+MODEL_ID = "google/gemma-2b-it"
+USER_TEMPLATE = ''
 
 def compute_meteor_score(label, generated_txt):
     return single_meteor_score(reference=generated_txt, hypothesis=label)
 
-def prompt_template(record, split, incl_ocomment, incl_inst):
+def prompt_template(record, split, experiment):
+    global USER_TEMPLATE
+
     INST = "Below is an instruction that describes a task. Write a response that "\
             "appropriately completes the request.\n\nGo through the old javadoc comment "\
             "and new code and generate an updated javadoc comment for the new code."\
 
-    if incl_ocomment:
+    if experiment == 1:
+        USER_TEMPLATE = '''<start_of_turn>user\nCode:\n{}\n<end_of_turn>\n'''.\
+                        format(record["dst_method"])
+
+    if experiment == 2:
         USER_TEMPLATE = '''<start_of_turn>user\nOld Comment:\n{}\nNew Code:\n{}\n<end_of_turn>\n'''.\
                         format(record["src_javadoc"], record["dst_method"])
 
-    elif incl_ocomment and incl_inst:
-        USER_TEMPLATE = '''<start_of_turn>user\n{}\n\nOld Comment:\n{}\nNew Code:\n{}\n<end_of_turn>\n'''.\
-                        format(INST, record["src_javadoc"], record["dst_method"])
+    if experiment == 3:
+        USER_TEMPLATE = '''<start_of_turn>user\nOld Code:\n{}\nNew Code:\n{}\n<end_of_turn>\n'''.\
+                        format(record["src_method"], record["dst_method"])
 
-    else:
-        USER_TEMPLATE = '''<start_of_turn>user\nCode:\n{}\n<end_of_turn>\n'''.\
-                        format(record["dst_method"])
+    if experiment == 4:
+        USER_TEMPLATE = '''<start_of_turn>user\nOld Comment:\n{}\nOld Code:\n{}\nGit Diff:\n{}\n<end_of_turn>\n'''.\
+                        format(record["src_javadoc"], record["src_method"], record["diff"])
+
 
     MODEL_TEMPLATE = '''<start_of_turn>model\nTarget Comment:\n{}<end_of_turn>'''.\
                      format(record["dst_javadoc"])
@@ -85,7 +93,7 @@ def training(train_ds, valid_ds, max_epochs, batch_size):
     model.gradient_checkpointing_enable()
     model = prepare_model_for_kbit_training(model)
 
-    modules = ['q_proj','k_proj','v_proj','o_proj','down_proj', 'up_proj', 'gate_proj']
+    modules = ['q_proj','k_proj','v_proj','o_proj','down_proj','up_proj','gate_proj']
     peft_config = LoraConfig(
         r=8,
         lora_alpha=32,
@@ -104,7 +112,7 @@ def training(train_ds, valid_ds, max_epochs, batch_size):
     torch.cuda.empty_cache()
 
     training_args = TrainingArguments(
-        output_dir="./gemma-7b-it-ft",
+        output_dir="./gemma-2b-it-ft",
         learning_rate=2e-4,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
@@ -115,13 +123,14 @@ def training(train_ds, valid_ds, max_epochs, batch_size):
         load_best_model_at_end=True,
         gradient_accumulation_steps=2,
         fp16=True,
-        optim="paged_adamw_8bit"
+        optim="paged_adamw_8bit",
+        ddp_find_unused_parameters=False
     )
 
     trainer = SFTTrainer(
         model=model,
         train_dataset=train_tokenized_inputs,
-        eval_dataset=train_tokenized_inputs, # replace this with valid_tokenized_input
+        eval_dataset=valid_tokenized_inputs, # replace this with valid_tokenized_inputs
         args=training_args,
         peft_config=peft_config,
         dataset_text_field="prompt",
@@ -169,13 +178,13 @@ def inference(test_ds, tokenizer, model, max_new_tokens):
 
     return generated_comment
 
-def run(data_dir: str, max_epochs: int, incl_ocomment: bool = False, incl_inst: bool = False,
-        batch_size: int = 8, max_new_tokens: int = 128):
+def run(data_dir: str, experiment: int = 4, max_epochs: int = 1,
+        batch_size: int = 4, max_new_tokens: int = 128):
 
     data_files = {
-        "train": "dummy_train.csv", #"train_preprocessed.csv",
-        "valid": "dummy_train.csv", #"eval_preprocessed.csv",
-        "test": "dummy_train.csv" #"test_preprocessed.csv"
+        "train": "train_preprocessed.csv",
+        "valid": "eval_preprocessed.csv",
+        "test":"test_preprocessed.csv"
     }
 
     dataset = load_dataset("csv", data_dir=data_dir, data_files=data_files)
@@ -183,7 +192,7 @@ def run(data_dir: str, max_epochs: int, incl_ocomment: bool = False, incl_inst: 
     for split in ["train", "valid", "test"]:
         prompt_col = []
         for record in tqdm(dataset[split]):
-                prompt_col.append(prompt_template(record, split, incl_ocomment, incl_inst))
+                prompt_col.append(prompt_template(record, split, experiment))
 
         dataset[split] = dataset[split].add_column("prompt", prompt_col)
 
