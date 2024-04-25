@@ -1,0 +1,47 @@
+if experiment == 1:
+
+<start_of_turn>
+user
+Code:
+{}
+<end_of_turn>
+
+if experiment == 2:
+
+<start_of_turn>
+user
+Old Comment:
+{}
+New Code:
+{}
+<end_of_turn>
+
+if experiment == 3:
+
+<start_of_turn>
+user
+Old Code:
+{}
+New Code:
+{}
+<end_of_turn>
+
+if experiment == 4:
+
+<start_of_turn>
+user
+Old Comment:
+{}
+Old Code:
+{}
+Git Diff:
+{}
+<end_of_turn>
+
+MODEL_TEMPLATE
+
+<start_of_turn>
+model
+Target Comment:
+{}
+<end_of_turn>

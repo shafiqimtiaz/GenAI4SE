@@ -1,0 +1,28 @@
+<start_of_turn>
+user
+Old Comment:
+Returns all users, or users from a specified database.
+New Code:
+public synchronized ArrayList < User > users(final String db, final Context ctx) {
+  final User curr = ctx.user();
+  final boolean admin = curr.has(Perm.ADMIN);
+  final ArrayList < User > tmp = new ArrayList < > ();
+  for (final User user: users.values()) {
+    if (admin || curr == user) {
+      if (db == null) {
+        tmp.add(user);
+      } else {
+        final Entry < String, Perm > entry = user.find(db);
+        if (entry != null) tmp.add(user);
+      }
+    }
+  }
+  return tmp;
+}
+<end_of_turn>
+
+<start_of_turn>
+model
+Target Comment:
+
+<end_of_turn>

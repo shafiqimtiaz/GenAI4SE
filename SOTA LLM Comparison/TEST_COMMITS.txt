@@ -1,0 +1,128 @@
+sample_id
+4133014
+
+src_method
+@Override
+public void closePool(final String username) throws SQLException {
+  synchronized(this) {
+    if (username == null || !username.equals(_username)) {
+      return;
+    }
+  }
+  try {
+    _pool.close();
+  } catch (final Exception ex) {
+    throw new SQLException("Error closing connection pool", ex);
+  }
+}
+
+dst_method
+@Override
+public void closePool(final String userName) throws SQLException {
+  synchronized(this) {
+    if (userName == null || !userName.equals(this.userName)) {
+      return;
+    }
+  }
+  try {
+    pool.close();
+  } catch (final Exception ex) {
+    throw new SQLException("Error closing connection pool", ex);
+  }
+}
+
+src_javadoc
+Verifies that the username matches the user whose connections are being managed by this
+factory and closes the pool if this is the case; otherwise does nothing.
+
+dst_javadoc
+Verifies that the user name matches the user whose connections are being managed by this factory and closes the
+pool if this is the case; otherwise does nothing.
+
+diff
+---
++++
+@@ -1,12 +1,12 @@
+@Override
+-	public void closePool(final String username) throws SQLException {
++	public void closePool(final String userName) throws SQLException {
+		synchronized(this) {
+-			if (username == null || !username.equals(_username)) {
++				if (userName == null || !userName.equals(this.userName)) {
+					return;
+				}
+			}
+			try {
+-				_pool.close();
++				pool.close();
+			} catch (final Exception ex) {
+				throw new SQLException("Error closing connection pool", ex);
+			}
+-------------------------------------------------------------------------------------------------------------
+sample_id
+4623065
+
+src_method
+public synchronized ArrayList < User > users(final String db) {
+  final ArrayList < User > tmp = new ArrayList < > ();
+  for (final User user: users.values()) {
+    if (db == null) {
+      tmp.add(user);
+    } else {
+      final Entry < String, Perm > entry = user.find(db);
+      if (entry != null) tmp.add(user);
+    }
+  }
+  return tmp;
+}
+
+dst_method
+public synchronized ArrayList < User > users(final String db, final Context ctx) {
+  final User curr = ctx.user();
+  final boolean admin = curr.has(Perm.ADMIN);
+  final ArrayList < User > tmp = new ArrayList < > ();
+  for (final User user: users.values()) {
+    if (admin || curr == user) {
+      if (db == null) {
+        tmp.add(user);
+      } else {
+        final Entry < String, Perm > entry = user.find(db);
+        if (entry != null) tmp.add(user);
+      }
+    }
+  }
+  return tmp;
+}
+
+src_javadoc
+Returns all users, or users from a specified database.
+
+dst_javadoc
+Returns all users, or users that have permissions for a specific database. The list will only contain the current user if no admin permissions are available.
+
+diff
+---
++++
+@@ -1,11 +1,15 @@
+-	public synchronized ArrayList<User> users(final String db) {
++	public synchronized ArrayList<User> users(final String db, final Context ctx) {
++		final User curr = ctx.user();
++		final boolean admin = curr.has(Perm.ADMIN);      
+		final ArrayList<User> tmp = new ArrayList<>();      
+		for(final User user : users.values()) { 
+-			if(db == null) { 
+-				tmp.add(user); 
+-			} else { 
+-				final Entry<String, Perm> entry = user.find(db); 
+-			if(entry != null) tmp.add(user); 
++			if(admin || curr == user) { 
++				if(db == null) { 
++					tmp.add(user); 
++				} else { 
++			final Entry<String, Perm> entry = user.find(db); 
++          		if(entry != null) tmp.add(user); 
++        		}        
+		}      
+	}      
+	return tmp;
+

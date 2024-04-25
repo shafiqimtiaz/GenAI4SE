@@ -1,0 +1,29 @@
+<start_of_turn>
+
+user
+
+Old Comment:
+Verifies that the username matches the user whose connections are being managed by this
+factory and closes the pool if this is the case; otherwise does nothing.
+
+New Code:
+@Override
+public void closePool(final String userName) throws SQLException {
+  synchronized(this) {
+    if (userName == null || !userName.equals(this.userName)) {
+      return;
+    }
+  }
+  try {
+    pool.close();
+  } catch (final Exception ex) {
+    throw new SQLException("Error closing connection pool", ex);
+  }
+}
+<end_of_turn>
+
+<start_of_turn>
+model
+Target Comment:
+
+<end_of_turn>

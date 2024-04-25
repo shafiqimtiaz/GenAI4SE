@@ -1,0 +1,50 @@
+<start_of_turn>
+user
+Old Comment:
+Returns all users, or users from a specified database.
+Old Code:
+public synchronized ArrayList < User > users(final String db) {
+  final ArrayList < User > tmp = new ArrayList < > ();
+  for (final User user: users.values()) {
+    if (db == null) {
+      tmp.add(user);
+    } else {
+      final Entry < String, Perm > entry = user.find(db);
+      if (entry != null) tmp.add(user);
+    }
+  }
+  return tmp;
+}
+Git Diff:
+diff
+---
++++
+@@ -1,11 +1,15 @@
+-	public synchronized ArrayList<User> users(final String db) {
++	public synchronized ArrayList<User> users(final String db, final Context ctx) {
++		final User curr = ctx.user();
++		final boolean admin = curr.has(Perm.ADMIN);      
+		final ArrayList<User> tmp = new ArrayList<>();      
+		for(final User user : users.values()) { 
+-			if(db == null) { 
+-				tmp.add(user); 
+-			} else { 
+-				final Entry<String, Perm> entry = user.find(db); 
+-			if(entry != null) tmp.add(user); 
++			if(admin || curr == user) { 
++				if(db == null) { 
++					tmp.add(user); 
++				} else { 
++			final Entry<String, Perm> entry = user.find(db); 
++          		if(entry != null) tmp.add(user); 
++        		}        
+		}      
+	}      
+	return tmp;
+<end_of_turn>
+
+<start_of_turn>
+model
+Target Comment:
+
+<end_of_turn>
